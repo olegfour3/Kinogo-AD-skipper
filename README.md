@@ -1,4 +1,4 @@
-![Image](/assets/favicon.pbg)
+![Image](/assets/favicon.png)
 
 С помощью этого скрипта можно не ожидать окончания рекламы при просмотре фильмов и сериалов на **Kinogo**-подобных сайтах. Например [kinogo.inc](https://kinogo.inc/)
 

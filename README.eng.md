@@ -1,4 +1,4 @@
-![Image](/assets/favicon.pbg)
+![Image](/assets/favicon.png)
 
 With this script, you can not expect the ending of advertising when watching films and series on **Kinogo**-like sites. For example [kinogo.inc](https://kinogo.inc/)
 
