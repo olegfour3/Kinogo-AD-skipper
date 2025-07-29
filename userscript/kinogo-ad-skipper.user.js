@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Kinogo.inc Автоматический Пропуск Рекламы
 // @namespace    http://tampermonkey.net/
-// @version      2.3.0
+// @version      2.3.1
 // @icon            https://github.com/olegfour3/Kinogo-AD-skipper/raw/main/assets/favicon.png
 // @updateURL       https://github.com/olegfour3/Kinogo-AD-skipper/raw/main/userscript/kinogo-ad-skipper.user.js
 // @downloadURL     https://github.com/olegfour3/Kinogo-AD-skipper/raw/main/userscript/kinogo-ad-skipper.user.js
@@ -15,10 +15,11 @@
 // @match        https://*.adstag*.*/*
 // @grant        none
 // ==/UserScript==
+
 (function() {
     'use strict';
 
-    console.log('Kinogo AD Skipper: Скрипт запущен');
+    console.log('Kinogo Smart Ad Skipper: Скрипт запущен');
 
     let config = {
         maxAdDuration: 180, // 3 минуты
@@ -291,42 +292,21 @@
     function showSkipNotification(duration, type = 'Реклама') {
         log(`🔔 Показываем уведомление: ${type} (${duration.toFixed(1)}с)`);
         try {
-            // Определяем целевой документ - всегда пытаемся использовать основное окно
+            // Пробуем определить целевой документ (основное окно или текущее)
             let targetDoc, targetBody;
             
-            // Проверяем, находимся ли мы в iframe
-            const isInIframe = window !== window.parent;
-            log(`📍 Находимся в iframe: ${isInIframe}`);
-            
-            if (isInIframe) {
-                try {
-                    // Пытаемся получить доступ к родительскому окну
-                    targetDoc = window.parent.document;
+            try {
+                // Пытаемся получить доступ к родительскому окну
+                if (window.top && window.top.document && window.top !== window) {
+                    targetDoc = window.top.document;
                     targetBody = targetDoc.body;
-                    log(`🎯 Используем родительское окно`);
-                } catch (e) {
-                    log(`❌ Нет доступа к родительскому окну: ${e.message}`);
-                    // Если нет доступа, пытаемся через postMessage
-                    try {
-                        window.parent.postMessage({
-                            type: 'AD_SKIPPED',
-                            duration: duration,
-                            adType: type,
-                            count: state.adCount
-                        }, '*');
-                        log(`📤 Отправлено сообщение в родительское окно`);
-                        return;
-                    } catch (postError) {
-                        log(`❌ Ошибка postMessage: ${postError.message}`);
-                        targetDoc = document;
-                        targetBody = document.body;
-                    }
+                } else {
+                    throw new Error('Используем текущее окно');
                 }
-            } else {
-                // Мы в основном окне
+            } catch (e) {
+                // Если нет доступа к родительскому окну, используем текущее
                 targetDoc = document;
                 targetBody = document.body;
-                log(`🏠 Используем основное окно`);
             }
             
             // Удаляем предыдущие уведомления
@@ -439,98 +419,8 @@
         return observer;
     }
 
-    function setupMessageListener() {
-        // Слушаем сообщения от iframe о пропуске рекламы
-        window.addEventListener('message', function(event) {
-            if (event.data && event.data.type === 'AD_SKIPPED') {
-                log(`📨 Получено сообщение о пропуске рекламы из iframe`);
-                const { duration, adType, count } = event.data;
-                
-                // Создаем уведомление в основном окне
-                createNotificationInMainWindow(duration, adType, count);
-            }
-        });
-    }
-
-    function createNotificationInMainWindow(duration, type, count) {
-        log(`🔔 Создаем уведомление в основном окне: ${type} (${duration.toFixed(1)}с)`);
-        
-        // Удаляем предыдущие уведомления
-        const existingNotifications = document.querySelectorAll('.ad-skip-notification');
-        existingNotifications.forEach(n => n.remove());
-        
-        const notification = document.createElement('div');
-        notification.className = 'ad-skip-notification';
-        notification.innerHTML = `
-            <div style="
-                position: fixed;
-                top: 20px;
-                right: 20px;
-                background: linear-gradient(135deg, #28a745, #20c997);
-                color: white;
-                padding: 12px 20px;
-                border-radius: 8px;
-                z-index: 999999;
-                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-                font-size: 14px;
-                font-weight: 500;
-                box-shadow: 0 4px 20px rgba(0,0,0,0.3);
-                animation: slideIn 0.3s ease-out;
-                border: 1px solid rgba(255,255,255,0.2);
-            ">
-                <div style="display: flex; align-items: center; gap: 8px;">
-                    <div style="font-size: 18px;">⚡</div>
-                    <div>
-                        <div>${type} пропущена</div>
-                        <div style="font-size: 12px; opacity: 0.8;">
-                            ${Math.round(duration)}с • Всего: ${count}
-                        </div>
-                    </div>
-                </div>
-            </div>
-        `;
-        
-        // Добавляем CSS анимации
-        if (!document.querySelector('#ad-skipper-styles')) {
-            const styles = document.createElement('style');
-            styles.id = 'ad-skipper-styles';
-            styles.textContent = `
-                @keyframes slideIn {
-                    from { transform: translateX(100%); opacity: 0; }
-                    to { transform: translateX(0); opacity: 1; }
-                }
-                @keyframes slideOut {
-                    from { transform: translateX(0); opacity: 1; }
-                    to { transform: translateX(100%); opacity: 0; }
-                }
-            `;
-            document.head.appendChild(styles);
-        }
-        
-        document.body.appendChild(notification);
-        log(`✅ Уведомление добавлено в основное окно`);
-
-        // Убираем уведомление с анимацией
-        setTimeout(() => {
-            if (notification.parentNode) {
-                notification.style.animation = 'slideOut 0.3s ease-in';
-                setTimeout(() => {
-                    if (notification.parentNode) {
-                        notification.remove();
-                    }
-                }, 300);
-            }
-        }, 3000);
-    }
-
     function init() {
         log('🚀 Инициализация умного пропуска рекламы...');
-        
-        // Настраиваем слушатель сообщений (только в основном окне)
-        if (window === window.parent) {
-            setupMessageListener();
-            log('📻 Настроен слушатель сообщений в основном окне');
-        }
         
         // Перехватываем VAST события
         interceptVastEvents();
