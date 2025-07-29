@@ -1,0 +1,5 @@
+# VSCode
+.vscode
+
+# Affinity Designer lock files
+*.afdesign~lock~
