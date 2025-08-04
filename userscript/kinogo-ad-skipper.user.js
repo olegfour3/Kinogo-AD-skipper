@@ -8,6 +8,10 @@
 // @description  Автоматически пропускает VAST рекламу на kinogo сайтах с продвинутым обнаружением
 // @author       olegfour3
 // @match        https://kinogo.inc/
+// @match        https://kinogo.ec/
+// @match        https://kinogo.media/
+// @match        https://kinogo.org/
+// @match        https://kinogo.online/
 // @match        https://kinogo.*/*
 // @match        https://*.kinogo.*/*
 // @match        https://*.allarknow.online/*
