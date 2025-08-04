@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Kinogo.inc Автоматический Пропуск Рекламы
 // @namespace    http://tampermonkey.net/
-// @version      2.6.0
+// @version      2.6.1
 // @icon            https://github.com/olegfour3/Kinogo-AD-skipper/raw/main/assets/favicon.png
 // @updateURL       https://github.com/olegfour3/Kinogo-AD-skipper/raw/main/userscript/kinogo-ad-skipper.user.js
 // @downloadURL     https://github.com/olegfour3/Kinogo-AD-skipper/raw/main/userscript/kinogo-ad-skipper.user.js
@@ -87,9 +87,9 @@
             '#modalOverlay',
             '.modal-overlay',
             'div[id*="modal"][style*="z-index"]',
-            // Новые рекламные блоки
-            'ins.0dd30d14',
-            'ins.7236739a',
+            // Новые рекламные блоки (используем атрибутные селекторы для классов с цифрами)
+            'ins[class="0dd30d14"]',
+            'ins[class="7236739a"]',
             '.ad-branding',
             '#skin-aaae741d',
             '#brndbe8cdb1fc',
@@ -107,15 +107,15 @@
                     // Проверяем, что это именно то модальное окно с Telegram-чатом или рекламный блок
                     const telegramLink = modal.querySelector('a[href*="t.me"]');
                     const feedbackText = modal.querySelector('#feedbackQuestion');
-                    const isAdBlock = modal.classList.contains('0dd30d14') || 
-                                     modal.classList.contains('7236739a') || 
+                    const isAdBlock = (modal.getAttribute('class') === '0dd30d14') || 
+                                     (modal.getAttribute('class') === '7236739a') || 
                                      modal.classList.contains('ad-branding') ||
                                      modal.classList.contains('wt-sky-dialog') ||
                                      modal.classList.contains('popup__banner') ||
                                      modal.id === 'skin-aaae741d' ||
                                      modal.id === 'brndbe8cdb1fc' ||
-                                     modal.className.includes('wt-sky') ||
-                                     modal.className.includes('popup');
+                                     (modal.className && typeof modal.className === 'string' && modal.className.includes('wt-sky')) ||
+                                     (modal.className && typeof modal.className === 'string' && modal.className.includes('popup'));
                     
                     if (telegramLink || feedbackText || modal.innerHTML.includes('Telegram-чате') || isAdBlock) {
                         const adType = isAdBlock ? 'Рекламный блок' : 'Модальное окно';
@@ -247,7 +247,7 @@
         }
 
         // Проверяем контейнер видео
-        const container = video.closest('.rmp-ad-container, .allplay__ads, [class*="ad-"], [class*="ads-"], [class*="vast"], .ad-branding, .reklama, .zplata, ins.0dd30d14, ins.7236739a');
+        const container = video.closest('.rmp-ad-container, .allplay__ads, [class*="ad-"], [class*="ads-"], [class*="vast"], .ad-branding, .reklama, .zplata, ins[class="0dd30d14"], ins[class="7236739a"]');
         if (container) {
             return true;
         }
@@ -517,12 +517,12 @@
                                 node.tagName === 'IFRAME' ||
                                 (node.querySelector && 
                                  (node.querySelector('video') || node.querySelector('iframe'))) ||
-                                (node.className && node.className.includes('rmp-ad'))) {
+                                (node.className && typeof node.className === 'string' && node.className.includes('rmp-ad'))) {
                                 shouldCheck = true;
                             }
                             
                             // Проверяем на модальные окна и рекламные блоки
-                            if (node.className && 
+                            if ((node.className && typeof node.className === 'string' && 
                                 (node.className.includes('modal') || 
                                  node.className.includes('overlay') ||
                                  node.className.includes('0dd30d14') ||
@@ -531,7 +531,7 @@
                                  node.className.includes('reklama') ||
                                  node.className.includes('zplata') ||
                                  node.className.includes('wt-sky') ||
-                                 node.className.includes('popup')) ||
+                                 node.className.includes('popup'))) ||
                                 node.id === 'modalOverlay' ||
                                 node.id === 'skin-aaae741d' ||
                                 node.id === 'brndbe8cdb1fc' ||
@@ -590,7 +590,7 @@
         
         log('✅ Умный пропуск рекламы активирован');
         log('📋 Поддерживается: VAST реклама, обычная реклама, RMP плеер, модальные окна');
-        log('🆕 Новая поддержка: cinemar.cc, allarknow.online, atomics.ws, рекламные блоки ins.0dd30d14/7236739a');
+        log('🆕 Новая поддержка: cinemar.cc, allarknow.online, atomics.ws, рекламные блоки с классами 0dd30d14/7236739a');
         log('🔧 Дополнительно: wt-sky-dialog (переводчики), popup__banner (всплывающие баннеры)');
     }
 
