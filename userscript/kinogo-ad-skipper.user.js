@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Kinogo.inc Автоматический Пропуск Рекламы
 // @namespace    http://tampermonkey.net/
-// @version      2.4.0
+// @version      2.5.0
 // @icon            https://github.com/olegfour3/Kinogo-AD-skipper/raw/main/assets/favicon.png
 // @updateURL       https://github.com/olegfour3/Kinogo-AD-skipper/raw/main/userscript/kinogo-ad-skipper.user.js
 // @downloadURL     https://github.com/olegfour3/Kinogo-AD-skipper/raw/main/userscript/kinogo-ad-skipper.user.js
@@ -18,6 +18,8 @@
 // @match        https://*.srv224.com/*
 // @match        https://*.adstag0102.xyz/*
 // @match        https://*.adstag*.*/*
+// @match        https://*.cinemar.cc/*
+// @match        https://*.atomics.ws/*
 // @grant        none
 // ==/UserScript==
 
@@ -84,30 +86,43 @@
         const modalSelectors = [
             '#modalOverlay',
             '.modal-overlay',
-            'div[id*="modal"][style*="z-index"]'
+            'div[id*="modal"][style*="z-index"]',
+            // Новые рекламные блоки
+            'ins.0dd30d14',
+            'ins.7236739a',
+            '.ad-branding',
+            '#skin-aaae741d',
+            '#brndbe8cdb1fc'
         ];
 
         modalSelectors.forEach(selector => {
             const modals = document.querySelectorAll(selector);
             modals.forEach(modal => {
                 if (modal && modal.style.display !== 'none') {
-                    // Проверяем, что это именно то модальное окно с Telegram-чатом
+                    // Проверяем, что это именно то модальное окно с Telegram-чатом или рекламный блок
                     const telegramLink = modal.querySelector('a[href*="t.me"]');
                     const feedbackText = modal.querySelector('#feedbackQuestion');
+                    const isAdBlock = modal.classList.contains('0dd30d14') || 
+                                     modal.classList.contains('7236739a') || 
+                                     modal.classList.contains('ad-branding') ||
+                                     modal.id === 'skin-aaae741d' ||
+                                     modal.id === 'brndbe8cdb1fc';
                     
-                    if (telegramLink || feedbackText || modal.innerHTML.includes('Telegram-чате')) {
-                        log('🚫 Скрываем модальное окно с предложением Telegram-чата');
+                    if (telegramLink || feedbackText || modal.innerHTML.includes('Telegram-чате') || isAdBlock) {
+                        const adType = isAdBlock ? 'Рекламный блок' : 'Модальное окно';
+                        log(`🚫 Скрываем ${adType}: ${selector}`);
                         modal.style.display = 'none';
                         modal.style.visibility = 'hidden';
                         modal.style.opacity = '0';
+                        modal.style.zIndex = '-9999';
                         
                         // Также скрываем overlay если он есть
-                        if (modal.classList.contains('modal-overlay')) {
+                        if (modal.classList.contains('modal-overlay') || isAdBlock) {
                             modal.remove();
                         }
                         
                         state.adCount++;
-                        showSkipNotification(0, 'Модальное окно');
+                        showSkipNotification(0, adType);
                     }
                 }
             });
@@ -143,7 +158,14 @@
             'video[src*="cdn3.adstag"]',
             '.rmp-ad-container video',
             '.allplay__ads video',
-            'video.rmp-ad-vast-video-player'
+            'video.rmp-ad-vast-video-player',
+            // Новые селекторы для плееров
+            '.js-player-container video',
+            '.video-container video',
+            '.kg-video-container video',
+            'iframe[src*="cinemar.cc"] video',
+            'iframe[src*="allarknow.online"] video',
+            'iframe[src*="atomics.ws"] video'
         ];
 
         for (const selector of adSelectors) {
@@ -154,10 +176,16 @@
             }
         }
 
-        // Поиск в iframe
-        const iframes = document.querySelectorAll('iframe');
+        // Поиск в iframe, включая новые плееры
+        const iframes = document.querySelectorAll('iframe, .js-player-container iframe, .video-container iframe, .kg-video-container iframe');
         for (const iframe of iframes) {
             try {
+                // Проверяем src iframe на наличие известных плееров
+                const src = iframe.src || iframe.getAttribute('data-src') || '';
+                if (src.includes('cinemar.cc') || src.includes('allarknow.online') || src.includes('atomics.ws')) {
+                    log(`🎬 Найден iframe плеера: ${src}`);
+                }
+                
                 if (iframe.contentDocument) {
                     for (const selector of adSelectors) {
                         const video = iframe.contentDocument.querySelector(selector);
@@ -188,7 +216,10 @@
         const vastIndicators = [
             'adstag', 'vast', 'preroll', 'midroll', 'postroll', 
             'ad-', 'ads-', 'advertisement', 'commercial', 'sponsor',
-            'rmp-ad', 'allplay__ads'
+            'rmp-ad', 'allplay__ads',
+            // Новые индикаторы
+            's2517.com', 'srv224.com', 'doubleclick.net', 'higneursheriven.com',
+            'ume0103d1am2dn7.click', 'brndbe8cdb1fc', 'skin-aaae741d'
         ];
 
         const videoClasses = video.className.toLowerCase();
@@ -205,7 +236,7 @@
         }
 
         // Проверяем контейнер видео
-        const container = video.closest('.rmp-ad-container, .allplay__ads, [class*="ad-"], [class*="ads-"], [class*="vast"]');
+        const container = video.closest('.rmp-ad-container, .allplay__ads, [class*="ad-"], [class*="ads-"], [class*="vast"], .ad-branding, .reklama, .zplata, ins.0dd30d14, ins.7236739a');
         if (container) {
             return true;
         }
@@ -233,7 +264,13 @@
                 '.rmp-ad-container .skip-button',
                 '.allplay__skip',
                 '[data-allplay="skip"]',
-                '.ad-skip-button'
+                '.ad-skip-button',
+                // Новые кнопки пропуска
+                '.js-player-container .skip-button',
+                '.video-container .skip-button',
+                '.kg-video-container .skip-button',
+                '[class*="skip"]',
+                '[id*="skip"]'
             ];
             
             for (const selector of skipButtons) {
@@ -339,7 +376,13 @@
         // Видео в основном документе
         videos.push(...document.querySelectorAll('video'));
         
-        // Видео в iframe
+        // Видео в новых контейнерах плееров
+        const playerContainers = document.querySelectorAll('.js-player-container, .video-container, .kg-video-container, .player-container');
+        playerContainers.forEach(container => {
+            videos.push(...container.querySelectorAll('video'));
+        });
+        
+        // Видео в iframe, включая новые плееры
         const iframes = document.querySelectorAll('iframe');
         iframes.forEach(iframe => {
             try {
@@ -467,16 +510,25 @@
                                 shouldCheck = true;
                             }
                             
-                            // Проверяем на модальные окна
+                            // Проверяем на модальные окна и рекламные блоки
                             if (node.className && 
                                 (node.className.includes('modal') || 
-                                 node.className.includes('overlay')) ||
+                                 node.className.includes('overlay') ||
+                                 node.className.includes('0dd30d14') ||
+                                 node.className.includes('7236739a') ||
+                                 node.className.includes('ad-branding') ||
+                                 node.className.includes('reklama') ||
+                                 node.className.includes('zplata')) ||
                                 node.id === 'modalOverlay' ||
+                                node.id === 'skin-aaae741d' ||
+                                node.id === 'brndbe8cdb1fc' ||
                                 (node.innerHTML && 
                                  (node.innerHTML.includes('Telegram-чате') || 
-                                  node.innerHTML.includes('Понравился фильм')))) {
+                                  node.innerHTML.includes('Понравился фильм') ||
+                                  node.innerHTML.includes('s2517.com') ||
+                                  node.innerHTML.includes('srv224.com')))) {
                                 hasModalChanges = true;
-                                log('🔄 Обнаружено новое модальное окно');
+                                log('🔄 Обнаружено новое модальное окно или рекламный блок');
                             }
                         }
                     });
@@ -525,6 +577,7 @@
         
         log('✅ Умный пропуск рекламы активирован');
         log('📋 Поддерживается: VAST реклама, обычная реклама, RMP плеер, модальные окна');
+        log('🆕 Новая поддержка: cinemar.cc, allarknow.online, atomics.ws, рекламные блоки ins.0dd30d14/7236739a');
     }
 
     // Запуск

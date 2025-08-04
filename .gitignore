@@ -3,3 +3,6 @@
 
 # Affinity Designer lock files
 *.afdesign~lock~
+
+# Dev files
+pages/
