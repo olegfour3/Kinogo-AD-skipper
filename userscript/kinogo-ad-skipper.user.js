@@ -1,12 +1,13 @@
 // ==UserScript==
 // @name         Kinogo.inc Автоматический Пропуск Рекламы
 // @namespace    http://tampermonkey.net/
-// @version      2.3.1
+// @version      2.4.0
 // @icon            https://github.com/olegfour3/Kinogo-AD-skipper/raw/main/assets/favicon.png
 // @updateURL       https://github.com/olegfour3/Kinogo-AD-skipper/raw/main/userscript/kinogo-ad-skipper.user.js
 // @downloadURL     https://github.com/olegfour3/Kinogo-AD-skipper/raw/main/userscript/kinogo-ad-skipper.user.js
 // @description  Автоматически пропускает VAST рекламу на kinogo сайтах с продвинутым обнаружением
 // @author       olegfour3
+// @match        https://kinogo.inc/
 // @match        https://kinogo.*/*
 // @match        https://*.kinogo.*/*
 // @match        https://*.allarknow.online/*
@@ -71,6 +72,63 @@
             
             originalLog.apply(console, args);
         };
+    }
+
+    // Функция для скрытия модальных окон
+    function hideModalWindows() {
+        // Селекторы для поиска модальных окон
+        const modalSelectors = [
+            '#modalOverlay',
+            '.modal-overlay',
+            'div[id*="modal"][style*="z-index"]'
+        ];
+
+        modalSelectors.forEach(selector => {
+            const modals = document.querySelectorAll(selector);
+            modals.forEach(modal => {
+                if (modal && modal.style.display !== 'none') {
+                    // Проверяем, что это именно то модальное окно с Telegram-чатом
+                    const telegramLink = modal.querySelector('a[href*="t.me"]');
+                    const feedbackText = modal.querySelector('#feedbackQuestion');
+                    
+                    if (telegramLink || feedbackText || modal.innerHTML.includes('Telegram-чате')) {
+                        log('🚫 Скрываем модальное окно с предложением Telegram-чата');
+                        modal.style.display = 'none';
+                        modal.style.visibility = 'hidden';
+                        modal.style.opacity = '0';
+                        
+                        // Также скрываем overlay если он есть
+                        if (modal.classList.contains('modal-overlay')) {
+                            modal.remove();
+                        }
+                        
+                        state.adCount++;
+                        showSkipNotification(0, 'Модальное окно');
+                    }
+                }
+            });
+        });
+
+        // Дополнительно ищем по содержимому
+        const allDivs = document.querySelectorAll('div[style*="z-index"]');
+        allDivs.forEach(div => {
+            if (div.innerHTML.includes('Telegram-чате') || 
+                div.innerHTML.includes('Понравился фильм') ||
+                div.innerHTML.includes('более 500 киноманов')) {
+                log('🚫 Скрываем модальное окно по содержимому');
+                div.style.display = 'none';
+                div.style.visibility = 'hidden';
+                div.style.opacity = '0';
+                
+                // Убираем весь родительский контейнер если это overlay
+                const overlay = div.closest('.modal-overlay, [class*="overlay"]');
+                if (overlay) {
+                    overlay.remove();
+                } else {
+                    div.remove();
+                }
+            }
+        });
     }
 
     function findAdVideo() {
@@ -225,7 +283,10 @@
         state.isProcessing = true;
 
         try {
-            // Сначала ищем VAST рекламу
+            // Сначала скрываем модальные окна
+            hideModalWindows();
+            
+            // Затем ищем VAST рекламу
             const vastVideo = findAdVideo();
             if (vastVideo && vastVideo.duration > 0 && vastVideo.duration < config.maxAdDuration) {
                 const videoId = getVideoId(vastVideo);
@@ -388,6 +449,7 @@
     function observeChanges() {
         const observer = new MutationObserver((mutations) => {
             let shouldCheck = false;
+            let hasModalChanges = false;
             
             mutations.forEach((mutation) => {
                 if (mutation.type === 'childList') {
@@ -400,6 +462,18 @@
                                 (node.className && node.className.includes('rmp-ad'))) {
                                 shouldCheck = true;
                             }
+                            
+                            // Проверяем на модальные окна
+                            if (node.className && 
+                                (node.className.includes('modal') || 
+                                 node.className.includes('overlay')) ||
+                                node.id === 'modalOverlay' ||
+                                (node.innerHTML && 
+                                 (node.innerHTML.includes('Telegram-чате') || 
+                                  node.innerHTML.includes('Понравился фильм')))) {
+                                hasModalChanges = true;
+                                log('🔄 Обнаружено новое модальное окно');
+                            }
                         }
                     });
                 }
@@ -408,6 +482,9 @@
             if (shouldCheck) {
                 log('🔄 Обнаружены новые видео элементы');
                 setTimeout(checkAndSkipAds, 200);
+            } else if (hasModalChanges) {
+                // Если появились только модальные окна, скрываем их немедленно
+                setTimeout(hideModalWindows, 100);
             }
         });
 
@@ -437,8 +514,13 @@
         // Первоначальная проверка
         setTimeout(checkAndSkipAds, 500);
         
+        // Дополнительная проверка модальных окон через короткие интервалы
+        setTimeout(() => {
+            hideModalWindows();
+        }, 1000);
+        
         log('✅ Умный пропуск рекламы активирован');
-        log('📋 Поддерживается: VAST реклама, обычная реклама, RMP плеер');
+        log('📋 Поддерживается: VAST реклама, обычная реклама, RMP плеер, модальные окна');
     }
 
     // Запуск
