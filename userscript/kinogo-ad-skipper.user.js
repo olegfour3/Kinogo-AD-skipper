@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Kinogo.inc Автоматический Пропуск Рекламы
 // @namespace    http://tampermonkey.net/
-// @version      2.5.0
+// @version      2.6.0
 // @icon            https://github.com/olegfour3/Kinogo-AD-skipper/raw/main/assets/favicon.png
 // @updateURL       https://github.com/olegfour3/Kinogo-AD-skipper/raw/main/userscript/kinogo-ad-skipper.user.js
 // @downloadURL     https://github.com/olegfour3/Kinogo-AD-skipper/raw/main/userscript/kinogo-ad-skipper.user.js
@@ -92,7 +92,12 @@
             'ins.7236739a',
             '.ad-branding',
             '#skin-aaae741d',
-            '#brndbe8cdb1fc'
+            '#brndbe8cdb1fc',
+            // Всплывающие элементы расширений и переводчиков
+            '.wt-sky-dialog',
+            '.popup__banner',
+            '[class*="wt-sky"]',
+            '[class*="popup"]'
         ];
 
         modalSelectors.forEach(selector => {
@@ -105,8 +110,12 @@
                     const isAdBlock = modal.classList.contains('0dd30d14') || 
                                      modal.classList.contains('7236739a') || 
                                      modal.classList.contains('ad-branding') ||
+                                     modal.classList.contains('wt-sky-dialog') ||
+                                     modal.classList.contains('popup__banner') ||
                                      modal.id === 'skin-aaae741d' ||
-                                     modal.id === 'brndbe8cdb1fc';
+                                     modal.id === 'brndbe8cdb1fc' ||
+                                     modal.className.includes('wt-sky') ||
+                                     modal.className.includes('popup');
                     
                     if (telegramLink || feedbackText || modal.innerHTML.includes('Telegram-чате') || isAdBlock) {
                         const adType = isAdBlock ? 'Рекламный блок' : 'Модальное окно';
@@ -219,7 +228,9 @@
             'rmp-ad', 'allplay__ads',
             // Новые индикаторы
             's2517.com', 'srv224.com', 'doubleclick.net', 'higneursheriven.com',
-            'ume0103d1am2dn7.click', 'brndbe8cdb1fc', 'skin-aaae741d'
+            'ume0103d1am2dn7.click', 'brndbe8cdb1fc', 'skin-aaae741d',
+            // Всплывающие элементы
+            'wt-sky', 'popup__banner', 'dialog'
         ];
 
         const videoClasses = video.className.toLowerCase();
@@ -518,7 +529,9 @@
                                  node.className.includes('7236739a') ||
                                  node.className.includes('ad-branding') ||
                                  node.className.includes('reklama') ||
-                                 node.className.includes('zplata')) ||
+                                 node.className.includes('zplata') ||
+                                 node.className.includes('wt-sky') ||
+                                 node.className.includes('popup')) ||
                                 node.id === 'modalOverlay' ||
                                 node.id === 'skin-aaae741d' ||
                                 node.id === 'brndbe8cdb1fc' ||
@@ -578,6 +591,7 @@
         log('✅ Умный пропуск рекламы активирован');
         log('📋 Поддерживается: VAST реклама, обычная реклама, RMP плеер, модальные окна');
         log('🆕 Новая поддержка: cinemar.cc, allarknow.online, atomics.ws, рекламные блоки ins.0dd30d14/7236739a');
+        log('🔧 Дополнительно: wt-sky-dialog (переводчики), popup__banner (всплывающие баннеры)');
     }
 
     // Запуск
