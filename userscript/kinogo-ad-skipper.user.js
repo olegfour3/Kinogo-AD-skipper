@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Kinogo.inc Автоматический Пропуск Рекламы
 // @namespace    http://tampermonkey.net/
-// @version      2.6.2
+    // @version      2.6.3
 // @icon            https://github.com/olegfour3/Kinogo-AD-skipper/raw/main/assets/favicon.png
 // @updateURL       https://github.com/olegfour3/Kinogo-AD-skipper/raw/main/userscript/kinogo-ad-skipper.user.js
 // @downloadURL     https://github.com/olegfour3/Kinogo-AD-skipper/raw/main/userscript/kinogo-ad-skipper.user.js
@@ -111,6 +111,7 @@
             // Новые рекламные блоки (используем атрибутные селекторы для классов с цифрами)
             'ins[class="0dd30d14"]',
             'ins[class="7236739a"]',
+            'ins[class="604c7625"]',
             '.ad-branding',
             '#skin-aaae741d',
             '#brndbe8cdb1fc',
@@ -129,7 +130,8 @@
                     const telegramLink = modal.querySelector('a[href*="t.me"]');
                     const feedbackText = modal.querySelector('#feedbackQuestion');
                     const isAdBlock = (modal.getAttribute('class') === '0dd30d14') || 
-                                     (modal.getAttribute('class') === '7236739a') || 
+                                     (modal.getAttribute('class') === '7236739a') ||
+                                     (modal.getAttribute('class') === '604c7625') || 
                                      modal.classList.contains('ad-branding') ||
                                      modal.classList.contains('wt-sky-dialog') ||
                                      modal.classList.contains('popup__banner') ||
@@ -294,7 +296,7 @@
         }
 
         // Проверяем контейнер видео
-        const container = video.closest('.rmp-ad-container, .allplay__ads, [class*="ad-"], [class*="ads-"], [class*="vast"], .ad-branding, .reklama, .zplata, ins[class="0dd30d14"], ins[class="7236739a"]');
+        const container = video.closest('.rmp-ad-container, .allplay__ads, [class*="ad-"], [class*="ads-"], [class*="vast"], .ad-branding, .reklama, .zplata, ins[class="0dd30d14"], ins[class="7236739a"], ins[class="604c7625"]');
         if (container) {
             return true;
         }
@@ -577,6 +579,7 @@
                                  node.className.includes('overlay') ||
                                  node.className.includes('0dd30d14') ||
                                  node.className.includes('7236739a') ||
+                                 node.className.includes('604c7625') ||
                                  node.className.includes('ad-branding') ||
                                  node.className.includes('reklama') ||
                                  node.className.includes('zplata') ||
@@ -649,7 +652,7 @@
         
         log('✅ Умный пропуск рекламы активирован');
         log('📋 Поддерживается: VAST реклама, обычная реклама, RMP плеер, модальные окна');
-        log('🆕 Новая поддержка: cinemar.cc, allarknow.online, atomics.ws, рекламные блоки с классами 0dd30d14/7236739a');
+        log('🆕 Новая поддержка: cinemar.cc, allarknow.online, atomics.ws, рекламные блоки с классами 0dd30d14/7236739a/604c7625');
         log('🔧 Дополнительно: wt-sky-dialog (переводчики), popup__banner (всплывающие баннеры)');
     }
 
