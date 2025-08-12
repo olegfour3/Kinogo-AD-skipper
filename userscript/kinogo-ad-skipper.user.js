@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Kinogo.inc Автоматический Пропуск Рекламы
 // @namespace    http://tampermonkey.net/
-    // @version      2.6.3
+    // @version      2.7.0
 // @icon            https://github.com/olegfour3/Kinogo-AD-skipper/raw/main/assets/favicon.png
 // @updateURL       https://github.com/olegfour3/Kinogo-AD-skipper/raw/main/userscript/kinogo-ad-skipper.user.js
 // @downloadURL     https://github.com/olegfour3/Kinogo-AD-skipper/raw/main/userscript/kinogo-ad-skipper.user.js
@@ -48,6 +48,31 @@
         if (config.debug) {
             console.log(`[Ad Skipper] ${message}`);
         }
+    }
+
+    // Функция для проверки, является ли класс рекламным блоком (hex-подобный паттерн)
+    function isAdBlockClass(className) {
+        if (!className || typeof className !== 'string') return false;
+        
+        // Проверяем паттерн: 8 символов hex (цифры и буквы a-f)
+        const hexPattern = /^[0-9a-f]{8}$/i;
+        return hexPattern.test(className);
+    }
+
+    // Функция для поиска всех ins элементов с рекламными классами
+    function findAdInsElements() {
+        const allInsElements = document.querySelectorAll('ins[class]');
+        const adElements = [];
+        
+        allInsElements.forEach(element => {
+            const className = element.getAttribute('class');
+            if (isAdBlockClass(className)) {
+                log(`🎯 Найден рекламный ins элемент с классом: ${className}`);
+                adElements.push(element);
+            }
+        });
+        
+        return adElements;
     }
 
     // Перехватываем VAST события
@@ -103,15 +128,27 @@
 
     // Функция для скрытия модальных окон
     function hideModalWindows() {
-        // Селекторы для поиска модальных окон
+        // Сначала обрабатываем универсальные рекламные ins элементы
+        const adInsElements = findAdInsElements();
+        adInsElements.forEach(element => {
+            if (element && element.style.display !== 'none') {
+                const className = element.getAttribute('class');
+                log(`🚫 Скрываем рекламный ins блок: ${className}`);
+                element.style.display = 'none';
+                element.style.visibility = 'hidden';
+                element.style.opacity = '0';
+                element.style.zIndex = '-9999';
+                element.remove();
+                state.adCount++;
+                showSkipNotification(0, `Рекламный блок (${className})`);
+            }
+        });
+
+        // Селекторы для поиска других модальных окон
         const modalSelectors = [
             '#modalOverlay',
             '.modal-overlay',
             'div[id*="modal"][style*="z-index"]',
-            // Новые рекламные блоки (используем атрибутные селекторы для классов с цифрами)
-            'ins[class="0dd30d14"]',
-            'ins[class="7236739a"]',
-            'ins[class="604c7625"]',
             '.ad-branding',
             '#skin-aaae741d',
             '#brndbe8cdb1fc',
@@ -129,9 +166,8 @@
                     // Проверяем, что это именно то модальное окно с Telegram-чатом или рекламный блок
                     const telegramLink = modal.querySelector('a[href*="t.me"]');
                     const feedbackText = modal.querySelector('#feedbackQuestion');
-                    const isAdBlock = (modal.getAttribute('class') === '0dd30d14') || 
-                                     (modal.getAttribute('class') === '7236739a') ||
-                                     (modal.getAttribute('class') === '604c7625') || 
+                    const modalClassName = modal.getAttribute('class');
+                    const isAdBlock = (modalClassName && isAdBlockClass(modalClassName)) || 
                                      modal.classList.contains('ad-branding') ||
                                      modal.classList.contains('wt-sky-dialog') ||
                                      modal.classList.contains('popup__banner') ||
@@ -295,10 +331,20 @@
             return true;
         }
 
-        // Проверяем контейнер видео
-        const container = video.closest('.rmp-ad-container, .allplay__ads, [class*="ad-"], [class*="ads-"], [class*="vast"], .ad-branding, .reklama, .zplata, ins[class="0dd30d14"], ins[class="7236739a"], ins[class="604c7625"]');
+        // Проверяем контейнер видео, включая универсальные рекламные ins элементы
+        const container = video.closest('.rmp-ad-container, .allplay__ads, [class*="ad-"], [class*="ads-"], [class*="vast"], .ad-branding, .reklama, .zplata');
         if (container) {
             return true;
+        }
+
+        // Дополнительно проверяем, находится ли видео внутри рекламного ins элемента
+        const insParent = video.closest('ins[class]');
+        if (insParent) {
+            const insClassName = insParent.getAttribute('class');
+            if (isAdBlockClass(insClassName)) {
+                log(`🎯 Видео найдено внутри рекламного ins блока: ${insClassName}`);
+                return true;
+            }
         }
 
         // Проверяем по src URL
@@ -574,17 +620,16 @@
                             }
                             
                             // Проверяем на модальные окна и рекламные блоки
+                            const nodeClassName = node.getAttribute ? node.getAttribute('class') : '';
                             if ((node.className && typeof node.className === 'string' && 
                                 (node.className.includes('modal') || 
                                  node.className.includes('overlay') ||
-                                 node.className.includes('0dd30d14') ||
-                                 node.className.includes('7236739a') ||
-                                 node.className.includes('604c7625') ||
                                  node.className.includes('ad-branding') ||
                                  node.className.includes('reklama') ||
                                  node.className.includes('zplata') ||
                                  node.className.includes('wt-sky') ||
                                  node.className.includes('popup'))) ||
+                                (nodeClassName && isAdBlockClass(nodeClassName)) ||
                                 node.id === 'modalOverlay' ||
                                 node.id === 'skin-aaae741d' ||
                                 node.id === 'brndbe8cdb1fc' ||
@@ -652,8 +697,9 @@
         
         log('✅ Умный пропуск рекламы активирован');
         log('📋 Поддерживается: VAST реклама, обычная реклама, RMP плеер, модальные окна');
-        log('🆕 Новая поддержка: cinemar.cc, allarknow.online, atomics.ws, рекламные блоки с классами 0dd30d14/7236739a/604c7625');
+        log('🆕 Новая поддержка: cinemar.cc, allarknow.online, atomics.ws, универсальные рекламные ins блоки');
         log('🔧 Дополнительно: wt-sky-dialog (переводчики), popup__banner (всплывающие баннеры)');
+        log('🎯 Универсальное обнаружение: ins элементы с hex-классами (8 символов 0-9a-f)');
     }
 
     // Запуск
