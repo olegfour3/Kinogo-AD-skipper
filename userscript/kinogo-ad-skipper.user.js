@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Kinogo.inc Автоматический Пропуск Рекламы
 // @namespace    http://tampermonkey.net/
-    // @version      2.7.0
+    // @version      2.8.0
 // @icon            https://github.com/olegfour3/Kinogo-AD-skipper/raw/main/assets/favicon.png
 // @updateURL       https://github.com/olegfour3/Kinogo-AD-skipper/raw/main/userscript/kinogo-ad-skipper.user.js
 // @downloadURL     https://github.com/olegfour3/Kinogo-AD-skipper/raw/main/userscript/kinogo-ad-skipper.user.js
@@ -56,7 +56,11 @@
         
         // Проверяем паттерн: 8 символов hex (цифры и буквы a-f)
         const hexPattern = /^[0-9a-f]{8}$/i;
-        return hexPattern.test(className);
+        
+        // Дополнительно проверяем известные hex-классы из новых рекламных систем
+        const knownAdHexClasses = ['7236739a', '0dd30d14'];
+        
+        return hexPattern.test(className) || knownAdHexClasses.includes(className.toLowerCase());
     }
 
     // Функция для поиска всех ins элементов с рекламными классами
@@ -152,6 +156,11 @@
             '.ad-branding',
             '#skin-aaae741d',
             '#brndbe8cdb1fc',
+            // EAS Video Overlay System (новая система рекламы)
+            '.eas-video-overlay-wrapper',
+            '.eas-video-overlay-container',
+            '[id*="eas-"][id*="_vjs"]',
+            '[class*="eas-"]',
             // Всплывающие элементы расширений и переводчиков
             '.wt-sky-dialog',
             '.popup__banner',
@@ -259,7 +268,17 @@
             '.kg-video-container video',
             'iframe[src*="cinemar.cc"] video',
             'iframe[src*="allarknow.online"] video',
-            'iframe[src*="atomics.ws"] video'
+            'iframe[src*="atomics.ws"] video',
+            // EAS Video Overlay System (новая система рекламы)
+            '.eas-video-overlay-wrapper video',
+            '.eas-video-overlay-container video',
+            '[id*="eas-"][id*="_vjs"] video',
+            '.vjs-ad-playing video',
+            'video[src*="blank.mp4"]',
+            'video[src*="srv224.com"]',
+            'video[src*="s2517.com"]',
+            'video[src*="cdn77.srv224.com"]',
+            'video[src*="cdn77.s2517.com"]'
         ];
 
         for (const selector of adSelectors) {
@@ -314,6 +333,9 @@
             // Новые индикаторы
             's2517.com', 'srv224.com', 'doubleclick.net', 'higneursheriven.com',
             'ume0103d1am2dn7.click', 'brndbe8cdb1fc', 'skin-aaae741d',
+            // EAS система и новые домены
+            'eas-', 'blank.mp4', 'cdn77.srv224.com', 'cdn77.s2517.com',
+            'bundle.css', 'bundle.js', 'vjs-ad-playing',
             // Всплывающие элементы
             'wt-sky', 'popup__banner', 'dialog'
         ];
@@ -331,8 +353,8 @@
             return true;
         }
 
-        // Проверяем контейнер видео, включая универсальные рекламные ins элементы
-        const container = video.closest('.rmp-ad-container, .allplay__ads, [class*="ad-"], [class*="ads-"], [class*="vast"], .ad-branding, .reklama, .zplata');
+        // Проверяем контейнер видео, включая универсальные рекламные ins элементы и EAS систему
+        const container = video.closest('.rmp-ad-container, .allplay__ads, [class*="ad-"], [class*="ads-"], [class*="vast"], .ad-branding, .reklama, .zplata, .eas-video-overlay-wrapper, .eas-video-overlay-container, [id*="eas-"]');
         if (container) {
             return true;
         }
@@ -700,6 +722,9 @@
         log('🆕 Новая поддержка: cinemar.cc, allarknow.online, atomics.ws, универсальные рекламные ins блоки');
         log('🔧 Дополнительно: wt-sky-dialog (переводчики), popup__banner (всплывающие баннеры)');
         log('🎯 Универсальное обнаружение: ins элементы с hex-классами (8 символов 0-9a-f)');
+        log('🆕 EAS Video Overlay System: eas-video-overlay-wrapper, eas-video-overlay-container');
+        log('🌐 Новые домены: srv224.com, s2517.com, cdn77.srv224.com, cdn77.s2517.com');
+        log('📺 Blank видео: blank.mp4 файлы, vjs-ad-playing классы');
     }
 
     // Запуск
